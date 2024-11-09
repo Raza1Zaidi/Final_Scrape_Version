@@ -5,30 +5,61 @@ from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# HTML template for the front end
+# Replace only this HTML_TEMPLATE block in app.py
 HTML_TEMPLATE = """
 <!doctype html>
 <html lang="en">
   <head>
-    <title>Domain Scraper</title>
+    <title>Enrich Social URLs</title>
     <style>
-      table, th, td {
-        border: 1px solid black;
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      h1 {
+        color: #2c3e50;
+      }
+      table {
+        width: 100%;
+        margin-top: 20px;
+        border: 1px solid #ddd;
         border-collapse: collapse;
+      }
+      th, td {
+        border: 1px solid #ddd;
         padding: 10px;
+        text-align: left;
+      }
+      th {
+        background-color: #f2f2f2;
       }
       button {
-        margin-top: 20px;
+        margin-top: 10px;
+        padding: 10px 20px;
+        background-color: #3498db;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+      }
+      button:hover {
+        background-color: #2980b9;
+      }
+      .instructions {
+        margin-bottom: 20px;
+        font-style: italic;
       }
     </style>
   </head>
   <body>
-    <h1>Domain Scraper</h1>
+    <h1>Enrich Social URLs for Your Domains</h1>
+    <p class="instructions">Enter a CSV of domains you want to scrape with a header “domain”.</p>
     <form action="/" method="post" enctype="multipart/form-data">
       <input type="file" name="file" accept=".csv" required>
       <button type="submit">Upload CSV</button>
     </form>
     {% if results %}
+      <button onclick="copyTable()">Copy to Clipboard</button>
       <h2>Results</h2>
       <table>
         <tr>
@@ -46,7 +77,6 @@ HTML_TEMPLATE = """
         </tr>
         {% endfor %}
       </table>
-      <button onclick="copyTable()">Copy to Clipboard</button>
     {% endif %}
     <script>
       function copyTable() {
