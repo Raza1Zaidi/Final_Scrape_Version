@@ -85,7 +85,7 @@ HTML_TEMPLATE = """
           const reader = new FileReader();
           reader.onload = function(e) {
             const lines = e.target.result.split('\\n');
-            const domainCount = lines.length - 1; // Adjust for the header line
+            const domainCount = lines.length > 1 ? lines.length - 1 : 0; // Adjust for header line
             document.getElementById('domain-count').textContent = `Total Domains: ${domainCount}`;
           };
           reader.readAsText(file);
@@ -109,32 +109,40 @@ HTML_TEMPLATE = """
 
       function startProgressUpdates() {
         const interval = setInterval(async function() {
-          const response = await fetch('/progress');
-          const data = await response.json();
+          try {
+            const response = await fetch('/progress');
+            const data = await response.json();
 
-          const resultsTable = document.getElementById('results-table');
-          resultsTable.style.display = 'table';
+            const resultsTable = document.getElementById('results-table');
+            resultsTable.style.display = 'table';
 
-          if (data.processed_results.length) {
-            // Clear existing rows (excluding header)
-            resultsTable.innerHTML = '<tr><th>Domain</th><th>Twitter URL</th><th>Facebook URL</th><th>LinkedIn URL</th></tr>';
+            if (data.processed_results.length) {
+              // Clear existing rows (excluding header)
+              while (resultsTable.rows.length > 1) {
+                resultsTable.deleteRow(1);
+              }
 
-            // Populate the table with processed results
-            data.processed_results.forEach(row => {
-              const tr = document.createElement('tr');
-              tr.innerHTML = `
-                <td>${row.Domain}</td>
-                <td>${row.Twitter || '-'}</td>
-                <td>${row.Facebook || '-'}</td>
-                <td>${row.LinkedIn || '-'}</td>
-              `;
-              resultsTable.appendChild(tr);
-            });
-          }
+              // Populate the table with processed results
+              data.processed_results.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                  <td>${row.Domain || '-'}</td>
+                  <td>${row.Twitter || '-'}</td>
+                  <td>${row.Facebook || '-'}</td>
+                  <td>${row.LinkedIn || '-'}</td>
+                `;
+                resultsTable.appendChild(tr);
+              });
+            }
 
-          if (data.complete) {
+            if (data.complete) {
+              clearInterval(interval);
+              document.getElementById('loading-message').textContent = 'Processing complete!';
+            }
+          } catch (error) {
+            console.error('Error fetching progress:', error);
             clearInterval(interval);
-            document.getElementById('loading-message').textContent = 'Processing complete!';
+            document.getElementById('loading-message').textContent = 'An error occurred while processing.';
           }
         }, 3000); // Poll every 3 seconds
       }
