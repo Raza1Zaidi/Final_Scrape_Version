@@ -53,48 +53,90 @@ HTML_TEMPLATE = """
         color: #2c3e50;
         margin-top: 20px;
       }
+      #domain-count {
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
     <h1>Enrich Social URLs for Your Domains</h1>
     <p class="instructions">Enter a CSV of domains you want to scrape with a header “domain”.</p>
-    <form action="/" method="post" enctype="multipart/form-data" onsubmit="showLoadingMessage()">
-      <input type="file" name="file" accept=".csv" required>
+    <form id="upload-form" action="/" method="post" enctype="multipart/form-data" onsubmit="showLoadingMessage()">
+      <input type="file" name="file" accept=".csv" required onchange="countDomains(this)">
+      <p id="domain-count"></p>
       <button type="submit">Upload CSV</button>
     </form>
     <p id="loading-message">Please wait while we process your request...</p>
-    {% if results %}
-      <button onclick="copyTable()">Copy to Clipboard</button>
-      <h2>Results</h2>
-      <table>
-        <tr>
-          <th>Domain</th>
-          <th>Twitter URL</th>
-          <th>Facebook URL</th>
-          <th>LinkedIn URL</th>
-        </tr>
-        {% for row in results %}
-        <tr>
-          <td>{{ row['Domain'] }}</td>
-          <td>{{ row['Twitter'] }}</td>
-          <td>{{ row['Facebook'] }}</td>
-          <td>{{ row['LinkedIn'] }}</td>
-        </tr>
-        {% endfor %}
-      </table>
-    {% endif %}
+    <button onclick="copyTable()">Copy to Clipboard</button>
+    <h2>Results</h2>
+    <table id="results-table" style="display:none;">
+      <tr>
+        <th>Domain</th>
+        <th>Twitter URL</th>
+        <th>Facebook URL</th>
+        <th>LinkedIn URL</th>
+      </tr>
+    </table>
+    
     <script>
+      function countDomains(input) {
+        const file = input.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(e) {
+            const lines = e.target.result.split('\\n');
+            const domainCount = lines.length - 1; // Adjust for the header line
+            document.getElementById('domain-count').textContent = `Total Domains: ${domainCount}`;
+          };
+          reader.readAsText(file);
+        }
+      }
+
+      function showLoadingMessage() {
+        document.getElementById('loading-message').style.display = 'block';
+        document.getElementById('results-table').style.display = 'table';
+        startProgressUpdates();
+      }
+
       function copyTable() {
         let range = document.createRange();
-        range.selectNode(document.querySelector('table'));
+        range.selectNode(document.querySelector('#results-table'));
         window.getSelection().removeAllRanges();
         window.getSelection().addRange(range);
         document.execCommand('copy');
         alert('Table copied to clipboard!');
       }
 
-      function showLoadingMessage() {
-        document.getElementById('loading-message').style.display = 'block';
+      function startProgressUpdates() {
+        const interval = setInterval(async function() {
+          const response = await fetch('/progress');
+          const data = await response.json();
+
+          const resultsTable = document.getElementById('results-table');
+          resultsTable.style.display = 'table';
+
+          if (data.processed_results.length) {
+            // Clear existing rows (excluding header)
+            resultsTable.innerHTML = '<tr><th>Domain</th><th>Twitter URL</th><th>Facebook URL</th><th>LinkedIn URL</th></tr>';
+
+            // Populate the table with processed results
+            data.processed_results.forEach(row => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${row.Domain}</td>
+                <td>${row.Twitter || '-'}</td>
+                <td>${row.Facebook || '-'}</td>
+                <td>${row.LinkedIn || '-'}</td>
+              `;
+              resultsTable.appendChild(tr);
+            });
+          }
+
+          if (data.complete) {
+            clearInterval(interval);
+            document.getElementById('loading-message').textContent = 'Processing complete!';
+          }
+        }, 3000); // Poll every 3 seconds
       }
     </script>
   </body>
