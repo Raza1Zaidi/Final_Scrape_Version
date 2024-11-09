@@ -1,77 +1,103 @@
+from flask import Flask, request, render_template_string, jsonify
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-from flask import Flask, request, render_template, jsonify
-import os
 
 app = Flask(__name__)
 
-# Function to scrape social media URLs from a given domain
-def extract_social_links(domain):
-    social_links = {
-        'facebook': None,
-        'linkedin': None,
-        'twitter': None
-    }
+# HTML template for the front end
+HTML_TEMPLATE = """
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Domain Scraper</title>
+    <style>
+      table, th, td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        padding: 10px;
+      }
+      button {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Domain Scraper</h1>
+    <form action="/" method="post" enctype="multipart/form-data">
+      <input type="file" name="file" accept=".csv" required>
+      <button type="submit">Upload CSV</button>
+    </form>
+    {% if results %}
+      <h2>Results</h2>
+      <table>
+        <tr>
+          <th>Domain</th>
+          <th>Twitter URL</th>
+          <th>Facebook URL</th>
+          <th>LinkedIn URL</th>
+        </tr>
+        {% for row in results %}
+        <tr>
+          <td>{{ row['Domain'] }}</td>
+          <td>{{ row['Twitter'] }}</td>
+          <td>{{ row['Facebook'] }}</td>
+          <td>{{ row['LinkedIn'] }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      <button onclick="copyTable()">Copy to Clipboard</button>
+    {% endif %}
+    <script>
+      function copyTable() {
+        let range = document.createRange();
+        range.selectNode(document.querySelector('table'));
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        alert('Table copied to clipboard!');
+      }
+    </script>
+  </body>
+</html>
+"""
+
+def scrape_social_links(domain):
+    twitter_url, facebook_url, linkedin_url = None, None, None
     try:
-        response = requests.get(f'http://{domain}', timeout=5)
+        response = requests.get(f"http://{domain}", timeout=5)
         soup = BeautifulSoup(response.content, 'html.parser')
-        
-        for a_tag in soup.find_all('a', href=True):
-            href = a_tag['href']
-            if 'facebook.com' in href:
-                social_links['facebook'] = href
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            if 'twitter.com' in href or 'x.com' in href:
+                twitter_url = href
+            elif 'facebook.com' in href:
+                facebook_url = href
             elif 'linkedin.com' in href:
-                social_links['linkedin'] = href
-            elif 'twitter.com' in href or 'x.com' in href:
-                social_links['twitter'] = href
-    except Exception as e:
-        social_links['error'] = str(e)
-    
-    return social_links
+                linkedin_url = href
+    except requests.exceptions.RequestException:
+        pass
+    return twitter_url, facebook_url, linkedin_url
 
-@app.route('/')
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    results = []
+    if request.method == 'POST':
+        file = request.files['file']
+        if file and file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+            if 'domain' not in df.columns:
+                return "Invalid CSV format. Please ensure the file has a 'domain' column.", 400
+            for index, row in df.iterrows():
+                domain = row['domain']
+                twitter, facebook, linkedin = scrape_social_links(domain)
+                results.append({
+                    'Domain': domain,
+                    'Twitter': twitter or 'Not found',
+                    'Facebook': facebook or 'Not found',
+                    'LinkedIn': linkedin or 'Not found'
+                })
+    return render_template_string(HTML_TEMPLATE, results=results)
 
-@app.route('/upload', methods=['POST'])
-def upload_csv():
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    
-    try:
-        # Read the uploaded CSV
-        domains_df = pd.read_csv(file)
-        if 'domain' not in domains_df.columns:
-            return jsonify({'error': 'Invalid CSV format. "domain" column is required.'}), 400
-        
-        domains = domains_df['domain'].tolist()
-        total_domains = len(domains)
-        
-        if total_domains > 1000:
-            return jsonify({'error': 'Please upload a CSV with up to 1000 domains.'}), 400
-        
-        # Process each domain and gather results
-        results = []
-        for i, domain in enumerate(domains):
-            social_links = extract_social_links(domain)
-            results.append({
-                'domain': domain,
-                'facebook': social_links['facebook'],
-                'linkedin': social_links['linkedin'],
-                'twitter': social_links['twitter'],
-                'status': social_links.get('error', 'Success')
-            })
-
-        # Return the results as JSON for rendering on the front-end
-        return jsonify({'results': results})
-    
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
