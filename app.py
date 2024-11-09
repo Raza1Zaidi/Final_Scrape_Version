@@ -8,76 +8,93 @@ HTML_TEMPLATE = """
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <title>Enrich Social URLs for Your Domains</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/css/bootstrap.min.css">
+    <title>Enrich Social URLs</title>
     <style>
-      /* Add a small loading message style */
-      #loadingMessage {
-        display: none;
-        text-align: center;
-        padding: 20px;
-        font-size: 20px;
-        color: #007bff;
-        font-weight: bold;
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
       }
-      
-      /* Center the table for better appearance */
+      h1 {
+        color: #2c3e50;
+      }
       table {
         width: 100%;
         margin-top: 20px;
+        border: 1px solid #ddd;
         border-collapse: collapse;
       }
       th, td {
         border: 1px solid #ddd;
-        padding: 8px;
+        padding: 10px;
         text-align: left;
       }
       th {
         background-color: #f2f2f2;
       }
+      button {
+        margin-top: 10px;
+        padding: 10px 20px;
+        background-color: #3498db;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 5px;
+      }
+      button:hover {
+        background-color: #2980b9;
+      }
+      .instructions {
+        margin-bottom: 20px;
+        font-style: italic;
+      }
+      #loading-message {
+        display: none;
+        font-style: italic;
+        color: #2c3e50;
+        margin-top: 20px;
+      }
     </style>
   </head>
-  <body class="container mt-5">
-    <h1 class="mb-4 text-center">Enrich Social URLs for Your Domains</h1>
-    <form id="csvForm" method="post" enctype="multipart/form-data">
-      <div class="form-group">
-        <label for="file">Upload a CSV file with a header 'domain'</label>
-        <input type="file" name="file" id="file" class="form-control-file" required>
-      </div>
-      <button type="submit" class="btn btn-primary btn-block">Upload</button>
+  <body>
+    <h1>Enrich Social URLs for Your Domains</h1>
+    <p class="instructions">Enter a CSV of domains you want to scrape with a header “domain”.</p>
+    <form action="/" method="post" enctype="multipart/form-data" onsubmit="showLoadingMessage()">
+      <input type="file" name="file" accept=".csv" required>
+      <button type="submit">Upload CSV</button>
     </form>
-    
-    <!-- Please wait message -->
-    <div id="loadingMessage">Please wait while we process your request...</div>
-
-    <!-- Output table will be injected here -->
-    <div id="outputContainer">
-      <!-- The table or output will be displayed here -->
-      {{ table_data|safe }}
-    </div>
-
-    <!-- Copy button to copy the table content -->
-    <button id="copyButton" onclick="copyToClipboard()" class="btn btn-secondary mt-3">Copy to Clipboard</button>
-
+    <p id="loading-message">Please wait while we process your request...</p>
+    {% if results %}
+      <button onclick="copyTable()">Copy to Clipboard</button>
+      <h2>Results</h2>
+      <table>
+        <tr>
+          <th>Domain</th>
+          <th>Twitter URL</th>
+          <th>Facebook URL</th>
+          <th>LinkedIn URL</th>
+        </tr>
+        {% for row in results %}
+        <tr>
+          <td>{{ row['Domain'] }}</td>
+          <td>{{ row['Twitter'] }}</td>
+          <td>{{ row['Facebook'] }}</td>
+          <td>{{ row['LinkedIn'] }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% endif %}
     <script>
-      // Show the loading message when the form is submitted
-      document.getElementById('csvForm').addEventListener('submit', function() {
-        document.getElementById('loadingMessage').style.display = 'block';
-      });
-
-      // Hide the loading message once the data is processed (you can trigger this manually on success)
-      function hideLoading() {
-        document.getElementById('loadingMessage').style.display = 'none';
+      function copyTable() {
+        let range = document.createRange();
+        range.selectNode(document.querySelector('table'));
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+        document.execCommand('copy');
+        alert('Table copied to clipboard!');
       }
 
-      // Function to copy the table content to clipboard
-      function copyToClipboard() {
-        const table = document.querySelector('#outputContainer').innerText;
-        navigator.clipboard.writeText(table)
-          .then(() => alert('Copied to clipboard!'))
-          .catch(err => alert('Failed to copy: ', err));
+      function showLoadingMessage() {
+        document.getElementById('loading-message').style.display = 'block';
       }
     </script>
   </body>
