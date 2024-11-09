@@ -4,8 +4,6 @@ import requests
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
-
-# Replace only this HTML_TEMPLATE block in app.py
 HTML_TEMPLATE = """
 <!doctype html>
 <html lang="en">
@@ -14,15 +12,6 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Enrich Social URLs for Your Domains</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/css/bootstrap.min.css">
-    <style>
-      #loadingMessage {
-        display: none;
-        text-align: center;
-        padding: 20px;
-        font-size: 20px;
-        color: #555;
-      }
-    </style>
   </head>
   <body class="container mt-5">
     <h1 class="mb-4">Enrich Social URLs for Your Domains</h1>
@@ -34,9 +23,10 @@ HTML_TEMPLATE = """
       <button type="submit" class="btn btn-primary">Upload</button>
     </form>
     
-    <div id="loadingMessage">Please wait while we process your request...</div>
+    <!-- Loading message -->
+    <div id="loadingMessage" style="display: none; text-align: center; padding: 10px; font-size: 18px; color: #007bff;">Please wait while we process your request...</div>
 
-    <div id="outputContainer">
+    <div id="outputContainer" class="mt-4">
       <!-- The table or output will be displayed here -->
       {{ table_data|safe }}
     </div>
